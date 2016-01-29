@@ -6,6 +6,9 @@ var fs = require('fs');
 var jsdom = require("jsdom");
 var $ = require('jquery')(jsdom.jsdom().defaultView);
 
+var allsubject = [];
+
+// get timetable
 getScheule('20131801', '251712');
 
 function getScheule(sid, password) {
@@ -108,8 +111,8 @@ function getScheule(sid, password) {
           timetable += data;
         })
         .on('end', function () {
-          //console.log(timetable);
-          fs.open("test.html", "w", 0644, function (e, fd) {
+          // console.log(timetable);
+          fs.open("test.html", "w", function (e, fd) {
             if (e) throw e;
             fs.write(fd, timetable, 0, 'utf8', function (e) {
               if (e) throw e;
@@ -128,12 +131,12 @@ function getScheule(sid, password) {
       // log out
       http.get('http://202.202.1.176:8080/sys/Logout.aspx', function (logout_res) {
         if (logout_res.statusCode == 200) {
-          console.log('Log out success.');
+          // console.log('Log out success.');
         }
       });
 
       login_req.end();
-      console.log(timetable);
+      // console.log(timetable);
       //return timetable;
 
     });
@@ -144,7 +147,97 @@ function getScheule(sid, password) {
 
 
 function parseTimetable(timetable) {
+  // console.log(timetable);
   //var tr = timetable.match(/<tr >(<td.*>.*<\/td>){13}<\/tr>/g);
-  var html = $(timetable);
-  console.log(html.find('.page_title'));
+  var table = timetable.match(/<TABLE.*\/table>/g)[0];
+  var tbody = table.match(/<tbody.*?\/tbody/g)[0];
+  var perSubject = tbody.match(/<tr.*?\/tr>/g);
+  // console.log(perSubject.length);
+  
+  // var subject = new Subject()
+  var lastSubject = new Subject();
+  for (var i = 0; i < perSubject.length; ++i) {
+    var subject = new Subject();
+    var row = perSubject[i].match(/<td.*?\/td>/g);
+    var col = [];
+    for (var j = 0; j < row.length; ++j) {
+      col[j] = $(row[j]).html().split('<')[0];
+    }
+    // Number
+    var num = col[0];
+    
+    if (col[1].length > 0) {
+      // code and name
+      var str = col[1].split(']');
+      subject.code = str[0].split('[')[1];
+      subject.name = str[1];    
+      // credit
+      subject.credit = col[2];
+      // period
+      subject.period = col[3];
+      // teach_period
+      subject.teach_period = col[4];
+      // exp_period
+      subject.exp_period = col[5];
+      // classification
+      subject.classification = col[6];
+      // teach_method
+      subject.teach_method = col[7];
+      // exam_method
+      subject.exam_method = col[8];
+      // teacher
+      subject.teacher = col[9];
+    }
+    else {
+      subject.code = lastSubject.code;
+      subject.name = lastSubject.name;
+      subject.credit = lastSubject.credit;
+      subject.period = lastSubject.period;
+      subject.teach_period = lastSubject.teach_period;
+      subject.exp_period = lastSubject.exp_period;
+      subject.classification = lastSubject.classification;
+      subject.teach_method = lastSubject.teach_method;
+      subject.exam_method = lastSubject.exam_method;
+      subject.teacher = lastSubject.teacher;
+    }
+    // weeks
+    var weeks = col[10].split('-');
+    for (var k = parseInt(weeks[0]); k <= parseInt(weeks[1]); ++k) {
+      subject.weeks.push(k);
+    }
+    // session
+    console.log(col[11]);
+    var session = col[11].match(/\d\d?\-\d\d?/g)[0].split('-');
+    for (var k = parseInt(session[0]); k <= parseInt(session[1]); ++k) {
+      subject.session.push(k);
+    }
+    // address
+    subject.address = col[12];
+    
+    // for hideValue
+    lastSubject = subject;
+    
+    // push to all subject
+    allsubject.push(subject);
+  }
+  
+  for (var i = 0; i < allsubject.length; ++i) {
+    console.log(allsubject[i]);
+  }
+}
+
+function Subject() {
+  this.code = '',
+  this.name = '',
+  this.credit = '',
+  this.period = '',
+  this.teach_period = '',
+  this.exp_period = '',
+  this.classification = '',
+  this.teach_method = '',
+  this.exam_method = '',
+  this.teacher = '',
+  this.weeks = [],
+  this.session = [];
+  this.address = ''
 }
