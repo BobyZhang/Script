@@ -5,8 +5,20 @@ var querystring = require('querystring');
 var fs = require('fs');
 var jsdom = require("jsdom");
 var $ = require('jquery')(jsdom.jsdom().defaultView);
+var ical = require('ical-generator');
+var iconv = require('iconv-lite');
 
 var allsubject = [];
+// term begins
+var termBeginY = 2016;
+var termBeginM = 2;
+var termBeginD = 22;
+// class time
+var classStart = [
+  new Time(8, 30), new Time(9, 25), new Time(10, 30), new Time(11, 25),
+  new Time(14, 0), new Time(14, 55), new Time(16, 0), new Time(16, 55),
+  new Time(19, 0), new Time(19, 55), new Time(20, 50), new Time(21, 45 )
+]
 
 // get timetable
 getScheule('20131801', '251712');
@@ -104,28 +116,35 @@ function getScheule(sid, password) {
       };
 
       var post_req = http.request(post_options, function (post_res) {
-        post_res.setEncoding('utf8');
-        //console.log(post_res.statusCode)
-        //console.log(post_res)
+        // console.log(post_res.headers);
+        // post_res.setEncoding('utf8');
         post_res.on('data', function (data) {
           timetable += data;
         })
         .on('end', function () {
           // console.log(timetable);
-          fs.open("test.html", "w", function (e, fd) {
-            if (e) throw e;
-            fs.write(fd, timetable, 0, 'utf8', function (e) {
-              if (e) throw e;
-              fs.closeSync(fd);
-            })
-          });
+          // fs.open("test.html", "w", function (e, fd) {
+          //   if (e) throw e;
+          //   fs.write(fd, timetable, 0, 'utf8', function (e) {
+          //     if (e) throw e;
+          //     fs.closeSync(fd);
+          //   })
+          // });
+          // var gbk_to_utf8 = new iconv('GBK', 'UTF8');
+          // var buf = gbk_to_utf8.convert(timetable);
+          var buf = iconv.decode(timetable, 'GBK');
+          // var buf = iconv.decode(buf2, 'UTF8');
+          // var buf2 = iconv.encode(buf, '');
+          // console.log(buf);
           console.log('Read success.');
 
           // start to parse
-          parseTimetable(timetable);
+          parseTimetable(buf);
         })
       });
+      
       post_req.write(post_data_st);
+      console.log(post_req.header);
       post_req.end();
 
       // log out
@@ -205,12 +224,15 @@ function parseTimetable(timetable) {
     for (var k = parseInt(weeks[0]); k <= parseInt(weeks[1]); ++k) {
       subject.weeks.push(k);
     }
-    // session
-    console.log(col[11]);
+    // session and days
     var session = col[11].match(/\d\d?\-\d\d?/g)[0].split('-');
     for (var k = parseInt(session[0]); k <= parseInt(session[1]); ++k) {
       subject.session.push(k);
     }
+    var days = col[11].split('[')[0];
+    console.log(days);
+    subject.days = toDays(days);
+    console.log(subject.days);
     // address
     subject.address = col[12];
     
@@ -221,9 +243,51 @@ function parseTimetable(timetable) {
     allsubject.push(subject);
   }
   
-  for (var i = 0; i < allsubject.length; ++i) {
-    console.log(allsubject[i]);
-  }
+  // export to ics
+  exportics(allsubject);
+}
+
+function exportics(allSub) {
+  var cal = ical({
+    prodId: {company: 'bobyZhang.com', product: 'CQU-ClassTimetable'},
+    name: 'CQU-Timetable',
+    timezone: 'CST'
+  });
+  
+  for(var i = 0; i < allSub.length; ++i) {
+    for (var j = 0; j < allSub[i].weeks.length; ++j) {
+      // calculate days, hours and minutes
+      // console.log(termBeginD);
+      // console.log(allSub[i].weeks[j] - 1);
+      // console.log(allSub[i].days - 1);
+      // console.log();
+      var day = termBeginD + (allSub[i].weeks[j] - 1) * 7 + (allSub[i].days - 1);
+      var shour = classStart[allSub[i].session[0] - 1].hour;
+      var sminute = classStart[allSub[i].session[0] - 1].minute;
+      var ehour = classStart[allSub[i].session[allSub[i].session.length - 1] - 1].hour;
+      var eminute = classStart[allSub[i].session[allSub[i].session.length - 1] - 1].minute + 45;
+      
+      // var dtstart = new Date(termBeginY, termBeginM, day);
+      // var dtend = new Date(termBeginY, termBeginM, day);
+      
+      // console.log(termBeginY);
+      // console.log(termBeginM);
+      // console.log(day);
+      // console.log(dtstart.toDateString);
+      // console.log(dtend.toDateString());
+      // add event
+      cal.createEvent({
+        // mth form 0 to 11
+        start: new Date(termBeginY, termBeginM - 1, day, shour, sminute, 0),
+        end: new Date(termBeginY, termBeginM - 1, day, ehour, eminute, 0),
+        summary: allSub[i].name + '[' + allSub[i].code + ']',
+        description: allSub[i].teacher,
+        location: allSub[i].address
+      });
+    }
+  } 
+  
+  // console.log(cal.toString());
 }
 
 function Subject() {
@@ -238,6 +302,42 @@ function Subject() {
   this.exam_method = '',
   this.teacher = '',
   this.weeks = [],
+  this.days = 0,
   this.session = [];
   this.address = ''
+}
+
+function Time(hour, minute) {
+  this.hour = hour;
+  this.minute = minute;
+}
+
+function toDays(days) {
+  var d = 0;
+  switch (days) {
+    case "一":
+      d = 1;
+      break;
+    case "二":
+      d = 2;
+      break;
+    case "三":
+      d = 3;
+      break;
+    case "四":
+      d = 4;
+      break;
+    case "五":
+      d = 5;
+      break;
+    case "六":
+      d = 6;
+      break;
+    case "天":
+      d = 7;
+      break;
+    default:
+      break;
+  } 
+  return d;
 }
