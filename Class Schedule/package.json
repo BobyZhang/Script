@@ -1,0 +1,13 @@
+{
+	"name": "classSchedule",
+	"version": "0.1.0",
+	"description": "A script to get class shecule of CQU",
+	"main": "classSchedule.js",
+	"dependencies": {
+		"md5": "*",
+		"querystring": "*",
+		"jsdom": "*",
+		"jquery": "*"
+	},
+	"license": ""
+}
