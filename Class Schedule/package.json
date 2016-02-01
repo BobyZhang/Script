@@ -1,15 +1,16 @@
 {
-	"name": "classSchedule",
-	"version": "0.1.0",
-	"description": "A script to get class shecule of CQU",
-	"main": "classSchedule.js",
-	"dependencies": {
-		"md5": "*",
-		"querystring": "*",
-		"jsdom": "*",
-		"jquery": "*",
+  "name": "classSchedule",
+  "version": "0.1.1",
+  "description": "A script to get class shecule of CQU",
+  "main": "classSchedule.js",
+  "dependencies": {
+    "express": "^4.13.4",
     "ical-generator": "*",
-    "iconv-lite": "*"
-	},
-	"license": ""
+    "iconv-lite": "*",
+    "jquery": "*",
+    "jsdom": "*",
+    "md5": "*",
+    "querystring": "*"
+  },
+  "license": ""
 }

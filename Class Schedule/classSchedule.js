@@ -1,4 +1,4 @@
-﻿
+﻿var express = require('express');
 var http = require('http');
 var md5 = require('md5');
 var querystring = require('querystring');
@@ -7,6 +7,8 @@ var jsdom = require("jsdom");
 var $ = require('jquery')(jsdom.jsdom().defaultView);
 var ical = require('ical-generator');
 var iconv = require('iconv-lite');
+
+var app = express();
 
 var allsubject = [];
 // term begins
@@ -118,8 +120,9 @@ function getScheule(sid, password) {
       var post_req = http.request(post_options, function (post_res) {
         // console.log(post_res.headers);
         // post_res.setEncoding('utf8');
+        var chunks = [];
         post_res.on('data', function (data) {
-          timetable += data;
+          chunks.push(data);
         })
         .on('end', function () {
           // console.log(timetable);
@@ -130,12 +133,7 @@ function getScheule(sid, password) {
           //     fs.closeSync(fd);
           //   })
           // });
-          // var gbk_to_utf8 = new iconv('GBK', 'UTF8');
-          // var buf = gbk_to_utf8.convert(timetable);
-          var buf = iconv.decode(timetable, 'GBK');
-          // var buf = iconv.decode(buf2, 'UTF8');
-          // var buf2 = iconv.encode(buf, '');
-          // console.log(buf);
+          var buf = iconv.decode(Buffer.concat(chunks), 'GBK');
           console.log('Read success.');
 
           // start to parse
@@ -144,7 +142,7 @@ function getScheule(sid, password) {
       });
       
       post_req.write(post_data_st);
-      console.log(post_req.header);
+
       post_req.end();
 
       // log out
@@ -270,11 +268,6 @@ function exportics(allSub) {
       // var dtstart = new Date(termBeginY, termBeginM, day);
       // var dtend = new Date(termBeginY, termBeginM, day);
       
-      // console.log(termBeginY);
-      // console.log(termBeginM);
-      // console.log(day);
-      // console.log(dtstart.toDateString);
-      // console.log(dtend.toDateString());
       // add event
       cal.createEvent({
         // mth form 0 to 11
@@ -287,7 +280,15 @@ function exportics(allSub) {
     }
   } 
   
-  // console.log(cal.toString());
+  // write to ics
+  fs.open("CQU-timetable.ics", "w", function (e, fd) {
+    if (e) throw e;
+    fs.write(fd, cal.toString(), 0, 'utf8', function (e) {
+      if (e) throw e;
+      fs.closeSync(fd);
+      console.log('Success!');
+    })
+  });
 }
 
 function Subject() {
@@ -333,7 +334,7 @@ function toDays(days) {
     case "六":
       d = 6;
       break;
-    case "天":
+    case "日":
       d = 7;
       break;
     default:
