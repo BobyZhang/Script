@@ -10,7 +10,8 @@
     "jquery": "*",
     "jsdom": "*",
     "md5": "*",
-    "querystring": "*"
+    "querystring": "*",
+    "request": "^2.69.0"
   },
   "license": ""
 }

@@ -7,6 +7,7 @@ var jsdom = require("jsdom");
 var $ = require('jquery')(jsdom.jsdom().defaultView);
 var ical = require('ical-generator');
 var iconv = require('iconv-lite');
+var request = require('request');
 
 var app = express();
 
@@ -29,7 +30,6 @@ function getScheule(sid, password) {
   var login_src = "http://202.202.1.176:8080/_data/index_login.aspx";
   
   var sessionId;  // cookie
-  var timetable = '';
   var viewstate;
   var viewstateg;
 
@@ -42,7 +42,7 @@ function getScheule(sid, password) {
 
   //console.log('haha');
 
-  // Fisrt visit to  get ASP.NET_SessionId
+  // Fisrt visit to  get ASP.NET_SessionId 
   var req = http.request(options, function (res) {
     // force on ASP.NET_SessionId(cookie)
     sessionId = res.headers['set-cookie'][0].split(';')[0].split('=')[1];
@@ -137,7 +137,7 @@ function getScheule(sid, password) {
           console.log('Read success.');
 
           // start to parse
-          parseTimetable(buf);
+          // parseTimetable(buf);
         })
       });
       
