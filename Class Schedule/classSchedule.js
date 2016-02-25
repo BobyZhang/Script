@@ -70,17 +70,8 @@ function getScheule(sid, password) {
         "Cookie": "ASP.NET_SessionId=" + sessionId
       }
       
+      // need a hash operation to ensure security
       var hash_value = md5(sid + md5(password).substring(0, 30).toUpperCase() + '10611').substring(0, 30).toUpperCase();
-      //console.log(hash_value)
-      //hash_value = md5(sid + md5(passwd).hexdigest()[0:30].upper() + "10611").hexdigest()[0:30].upper()
-
-      var login_options = {
-        method: 'POST',
-        hostname: '202.202.1.176',
-        port: 8080,
-        path: '/_data/index_login.aspx',
-        headers: headers
-      };
 
       var post_data = querystring.stringify({
         "__VIEWSTATE": viewstate,
@@ -94,15 +85,20 @@ function getScheule(sid, password) {
         "aerererdsdxcxdfgfg": "",
         "efdfdfuuyyuuckjg": hash_value
       });
-
-      var login_req = http.request(login_options, function (login_res) {
-        //console.log(login_res.statusCode);
-        //console.log(login_res.headers);
-        
-      });
-
-      login_req.write(post_data);
       
+      // Login operation
+      request({
+        headers: headers,
+        url: "http://202.202.1.176:8080/_data/index_login.aspx", 
+        body: post_data, 
+        method: 'POST'
+      }, function (err, httpResponse, body) {
+        if (httpResponse.statusCode == 200) {
+          console.log('login success!');
+        }
+      })
+      
+      // Get taimetable operation
       var post_data_st = querystring.stringify({
         "Sel_XNXQ": "20151",
         "rad": "on",
@@ -117,44 +113,35 @@ function getScheule(sid, password) {
         headers: headers
       };
 
-      var post_req = http.request(post_options, function (post_res) {
-        // console.log(post_res.headers);
-        // post_res.setEncoding('utf8');
-        var chunks = [];
-        post_res.on('data', function (data) {
-          chunks.push(data);
-        })
-        .on('end', function () {
-          // console.log(timetable);
-          // fs.open("test.html", "w", function (e, fd) {
-          //   if (e) throw e;
-          //   fs.write(fd, timetable, 0, 'utf8', function (e) {
-          //     if (e) throw e;
-          //     fs.closeSync(fd);
-          //   })
-          // });
-          var buf = iconv.decode(Buffer.concat(chunks), 'GBK');
-          console.log('Read success.');
-
-          // start to parse
-          // parseTimetable(buf);
-        })
-      });
-      
-      post_req.write(post_data_st);
-
-      post_req.end();
+      request({
+        headers: headers,
+        // return buffer directly to resolve decode problem
+        encoding: null,
+        url: "http://202.202.1.176:8080/znpk/Pri_StuSel_rpt.aspx",
+        body: post_data_st,
+        method: 'POST'
+      }, function (err, post_res, body) {
+        // console.log("Read success");
+        var page = iconv.decode(body, 'GBK');
+        
+        // start to parse
+        parseTimetable(page);
+      })
 
       // log out
-      http.get('http://202.202.1.176:8080/sys/Logout.aspx', function (logout_res) {
-        if (logout_res.statusCode == 200) {
-          // console.log('Log out success.');
+      // http.get('', function (logout_res) {
+      //   if (logout_res.statusCode == 200) {
+      //     // console.log('Log out success.');
+      //   }
+      // });
+      // Logout operation
+      request.get("http://202.202.1.176:8080/sys/Logout.aspx", function (err, res, body) {
+        if (res.statusCode == 200) {
+          console.log('Log out success');
         }
-      });
+      })
 
-      login_req.end();
-      // console.log(timetable);
-      //return timetable;
+      // login_req.end();
 
     });
   });
