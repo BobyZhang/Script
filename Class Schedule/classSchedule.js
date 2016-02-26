@@ -8,6 +8,7 @@ var $ = require('jquery')(jsdom.jsdom().defaultView);
 var ical = require('ical-generator');
 var iconv = require('iconv-lite');
 var request = require('request');
+var step = require('step');
 
 var app = express();
 
@@ -28,75 +29,88 @@ getScheule('20131801', '251712');
 
 function getScheule(sid, password) {
   var login_src = "http://202.202.1.176:8080/_data/index_login.aspx";
+  var timetable_src = "http://202.202.1.176:8080/znpk/Pri_StuSel_rpt.aspx";
   
-  var sessionId;  // cookie
-  var viewstate;
-  var viewstateg;
-
-  var options = {
-    hostname: '202.202.1.176',
-    port: 8080,
-    path: '/_data/index_login.aspx',
-    method: 'GET'
-  };
-
-  //console.log('haha');
-
   // Fisrt visit to  get ASP.NET_SessionId 
-  var req = http.request(options, function (res) {
-    // force on ASP.NET_SessionId(cookie)
-    sessionId = res.headers['set-cookie'][0].split(';')[0].split('=')[1];
+  step(
+    function firstVisit(callback) {
+      console.log('1');
+      request.get(login_src, function (err, res, body) {
+        console.log('2');
+        if (err || res.statusCode != 200) {
+          if (err) console.log(err);
+          else console.log('Error code is ' + res.statusCode);
+          return;
+        }
+        
+        // force on ASP.NET_SessionId(cookie)
+        var sessionId = res.headers['set-cookie'][0].split(';')[0].split('=')[1];
+        
+        // console.log(sessionId);
+        var html = body;
+        // get __VIEWSTATE and __VIEWSTATEGENERATOR
+        var __viewstateA = html.match(/<.*__VIEWSTATE.*>/g);
+        var viewstate = __viewstateA[0].match(/value=".*"/g)[0].split('"')[1];   // __VIEWSTATE
+        var viewstateg = __viewstateA[1].match(/value=".*"/g)[0].split('"')[1];  // __VIEWSTATEGENERATOR
 
-    //res.setEncoding('utf8');
-    var html = '';
-    res.on('data', function (data) {
-      html += data;
-    })
-    .on('end', function () {
-      // get __VIEWSTATE and __VIEWSTATEGENERATOR
-      var __viewstateA = html.match(/<.*__VIEWSTATE.*>/g);
-      viewstate = __viewstateA[0].match(/value=".*"/g)[0].split('"')[1];   // __VIEWSTATE
-      viewstateg = __viewstateA[1].match(/value=".*"/g)[0].split('"')[1];  // __VIEWSTATEGENERATOR
+        var headers = {
+          "Accept": "﻿application/x-ms-application, image/jpeg, application/xaml+xml,image/gif, image/pjpeg, application/x-ms-xbap, */*",
+          "Referer": "http://202.202.1.176:8080/_data/index_login.aspx",
+          "Accept-Language": "zh-CN",
+          "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)",
+          //"Connection": "Keep-Alive",
+          "Content-Type": "application/x-www-form-urlencoded",
+          //"Content-Type": "text/html; charset=gb2312",
+          "Accept-Encoding": "gzip, deflate",
+          "Cookie": "ASP.NET_SessionId=" + sessionId
+        }
+        
+        // need a hash operation to ensure security
+        var hash_value = md5(sid + md5(password).substring(0, 30).toUpperCase() + '10611').substring(0, 30).toUpperCase();
 
-      var headers = {
-        "Accept": "﻿application/x-ms-application, image/jpeg, application/xaml+xml,image/gif, image/pjpeg, application/x-ms-xbap, */*",
-        "Referer": "http://202.202.1.176:8080/_data/index_login.aspx",
-        "Accept-Language": "zh-CN",
-        "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)",
-        //"Connection": "Keep-Alive",
-        "Content-Type": "application/x-www-form-urlencoded",
-        //"Content-Type": "text/html; charset=gb2312",
-        "Accept-Encoding": "gzip, deflate",
-        "Cookie": "ASP.NET_SessionId=" + sessionId
-      }
-      
-      // need a hash operation to ensure security
-      var hash_value = md5(sid + md5(password).substring(0, 30).toUpperCase() + '10611').substring(0, 30).toUpperCase();
-
-      var post_data = querystring.stringify({
-        "__VIEWSTATE": viewstate,
-        "__VIEWSTATEGENERATOR": viewstateg,
-        "Sel_Type": "STU",
-        "txt_dsdsdsdjkjkjc": sid,
-        "txt_dsdfdfgfouyy": password,
-        "txt_ysdsdsdskgf": "",
-        "pcInfo": "﻿Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)x860 SN:NULL",
-        "typeName": "学生",
-        "aerererdsdxcxdfgfg": "",
-        "efdfdfuuyyuuckjg": hash_value
+        var post_data = querystring.stringify({
+          "__VIEWSTATE": viewstate,
+          "__VIEWSTATEGENERATOR": viewstateg,
+          "Sel_Type": "STU",
+          "txt_dsdsdsdjkjkjc": sid,
+          "txt_dsdfdfgfouyy": password,
+          "txt_ysdsdsdskgf": "",
+          "pcInfo": "﻿Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)x860 SN:NULL",
+          "typeName": "学生",
+          "aerererdsdxcxdfgfg": "",
+          "efdfdfuuyyuuckjg": hash_value
+        });
+        
+        var parm = {
+          "headers": headers,
+          "post_data": post_data
+        }
+        // console.log(parm);
+        console.log('a');
+        // return parm;
+        callback(parm);
       });
-      
+    },
+    
+    function login(err, parm) {
+      console.log(parm);
+      console.log(err)
+      console.log('b')
+      // console.log(parm.post_data);
       // Login operation
       request({
         headers: headers,
-        url: "http://202.202.1.176:8080/_data/index_login.aspx", 
+        url: login_src, 
         body: post_data, 
         method: 'POST'
       }, function (err, httpResponse, body) {
         if (httpResponse.statusCode == 200) {
           console.log('login success!');
         }
-      })
+      });
+    },
+    
+    function getTimetable(err) {
       
       // Get taimetable operation
       var post_data_st = querystring.stringify({
@@ -105,60 +119,38 @@ function getScheule(sid, password) {
         "px": "1",
         "Submit01": "检索"
       });
-      var post_options = {
-        method: 'POST',
-        hostname: '202.202.1.176',
-        port: 8080,
-        path: '/znpk/Pri_StuSel_rpt.aspx',
-        headers: headers
-      };
 
       request({
         headers: headers,
         // return buffer directly to resolve decode problem
         encoding: null,
-        url: "http://202.202.1.176:8080/znpk/Pri_StuSel_rpt.aspx",
+        url: timetable_src,
         body: post_data_st,
         method: 'POST'
       }, function (err, post_res, body) {
-        // console.log("Read success");
+        console.log("Read success");
         var page = iconv.decode(body, 'GBK');
         
         // start to parse
         parseTimetable(page);
-      })
-
-      // log out
-      // http.get('', function (logout_res) {
-      //   if (logout_res.statusCode == 200) {
-      //     // console.log('Log out success.');
-      //   }
-      // });
+      });
+    },
+    
+    function logout(err) {
       // Logout operation
       request.get("http://202.202.1.176:8080/sys/Logout.aspx", function (err, res, body) {
-        if (res.statusCode == 200) {
-          console.log('Log out success');
-        }
-      })
-
-      // login_req.end();
-
-    });
-  });
-
-  req.end();
+        if (res.statusCode == 200) console.log('Log out success');
+      });
+    }
+  );
 }
 
 
 function parseTimetable(timetable) {
-  // console.log(timetable);
-  //var tr = timetable.match(/<tr >(<td.*>.*<\/td>){13}<\/tr>/g);
   var table = timetable.match(/<TABLE.*\/table>/g)[0];
   var tbody = table.match(/<tbody.*?\/tbody/g)[0];
   var perSubject = tbody.match(/<tr.*?\/tr>/g);
-  // console.log(perSubject.length);
-  
-  // var subject = new Subject()
+
   var lastSubject = new Subject();
   for (var i = 0; i < perSubject.length; ++i) {
     var subject = new Subject();
@@ -175,22 +167,14 @@ function parseTimetable(timetable) {
       var str = col[1].split(']');
       subject.code = str[0].split('[')[1];
       subject.name = str[1];    
-      // credit
-      subject.credit = col[2];
-      // period
-      subject.period = col[3];
-      // teach_period
-      subject.teach_period = col[4];
-      // exp_period
-      subject.exp_period = col[5];
-      // classification
-      subject.classification = col[6];
-      // teach_method
-      subject.teach_method = col[7];
-      // exam_method
-      subject.exam_method = col[8];
-      // teacher
-      subject.teacher = col[9];
+      subject.credit = col[2];         // credit
+      subject.period = col[3];         // period
+      subject.teach_period = col[4];   // teach_period
+      subject.exp_period = col[5];     // exp_period
+      subject.classification = col[6]; // classification
+      subject.teach_method = col[7];   // teach_method
+      subject.exam_method = col[8];    // exam_method
+      subject.teacher = col[9];        // teacher
     }
     else {
       subject.code = lastSubject.code;
@@ -242,18 +226,11 @@ function exportics(allSub) {
   for(var i = 0; i < allSub.length; ++i) {
     for (var j = 0; j < allSub[i].weeks.length; ++j) {
       // calculate days, hours and minutes
-      // console.log(termBeginD);
-      // console.log(allSub[i].weeks[j] - 1);
-      // console.log(allSub[i].days - 1);
-      // console.log();
       var day = termBeginD + (allSub[i].weeks[j] - 1) * 7 + (allSub[i].days - 1);
       var shour = classStart[allSub[i].session[0] - 1].hour;
       var sminute = classStart[allSub[i].session[0] - 1].minute;
       var ehour = classStart[allSub[i].session[allSub[i].session.length - 1] - 1].hour;
       var eminute = classStart[allSub[i].session[allSub[i].session.length - 1] - 1].minute + 45;
-      
-      // var dtstart = new Date(termBeginY, termBeginM, day);
-      // var dtend = new Date(termBeginY, termBeginM, day);
       
       // add event
       cal.createEvent({
