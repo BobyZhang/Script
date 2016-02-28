@@ -30,74 +30,60 @@ getScheule('20131801', '251712');
 function getScheule(sid, password) {
   var login_src = "http://202.202.1.176:8080/_data/index_login.aspx";
   var timetable_src = "http://202.202.1.176:8080/znpk/Pri_StuSel_rpt.aspx";
+  var headers;  // request headers
   
-  // Fisrt visit to  get ASP.NET_SessionId 
   step(
-    function firstVisit(callback) {
-      console.log('1');
-      request.get(login_src, function (err, res, body) {
-        console.log('2');
-        if (err || res.statusCode != 200) {
-          if (err) console.log(err);
-          else console.log('Error code is ' + res.statusCode);
-          return;
-        }
-        
-        // force on ASP.NET_SessionId(cookie)
-        var sessionId = res.headers['set-cookie'][0].split(';')[0].split('=')[1];
-        
-        // console.log(sessionId);
-        var html = body;
-        // get __VIEWSTATE and __VIEWSTATEGENERATOR
-        var __viewstateA = html.match(/<.*__VIEWSTATE.*>/g);
-        var viewstate = __viewstateA[0].match(/value=".*"/g)[0].split('"')[1];   // __VIEWSTATE
-        var viewstateg = __viewstateA[1].match(/value=".*"/g)[0].split('"')[1];  // __VIEWSTATEGENERATOR
-
-        var headers = {
-          "Accept": "﻿application/x-ms-application, image/jpeg, application/xaml+xml,image/gif, image/pjpeg, application/x-ms-xbap, */*",
-          "Referer": "http://202.202.1.176:8080/_data/index_login.aspx",
-          "Accept-Language": "zh-CN",
-          "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)",
-          //"Connection": "Keep-Alive",
-          "Content-Type": "application/x-www-form-urlencoded",
-          //"Content-Type": "text/html; charset=gb2312",
-          "Accept-Encoding": "gzip, deflate",
-          "Cookie": "ASP.NET_SessionId=" + sessionId
-        }
-        
-        // need a hash operation to ensure security
-        var hash_value = md5(sid + md5(password).substring(0, 30).toUpperCase() + '10611').substring(0, 30).toUpperCase();
-
-        var post_data = querystring.stringify({
-          "__VIEWSTATE": viewstate,
-          "__VIEWSTATEGENERATOR": viewstateg,
-          "Sel_Type": "STU",
-          "txt_dsdsdsdjkjkjc": sid,
-          "txt_dsdfdfgfouyy": password,
-          "txt_ysdsdsdskgf": "",
-          "pcInfo": "﻿Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)x860 SN:NULL",
-          "typeName": "学生",
-          "aerererdsdxcxdfgfg": "",
-          "efdfdfuuyyuuckjg": hash_value
-        });
-        
-        var parm = {
-          "headers": headers,
-          "post_data": post_data
-        }
-        // console.log(parm);
-        console.log('a');
-        // return parm;
-        callback(parm);
-      });
+    // Fisrt visit to get ASP.NET_SessionId 
+    function firstVisit() {
+      request.get(login_src, this);
     },
     
-    function login(err, parm) {
-      console.log(parm);
-      console.log(err)
-      console.log('b')
-      // console.log(parm.post_data);
-      // Login operation
+    // Login operation
+    function login(err, res, body, callback) {
+      if (err || res.statusCode != 200) {
+        if (err) console.log(err);
+        else console.log('Error code is ' + res.statusCode);
+        return;
+      }
+      
+      // force on ASP.NET_SessionId(cookie)
+      var sessionId = res.headers['set-cookie'][0].split(';')[0].split('=')[1];
+      
+      var html = body;
+      // get __VIEWSTATE and __VIEWSTATEGENERATOR
+      var __viewstateA = html.match(/<.*__VIEWSTATE.*>/g);
+      var viewstate = __viewstateA[0].match(/value=".*"/g)[0].split('"')[1];   // __VIEWSTATE
+      var viewstateg = __viewstateA[1].match(/value=".*"/g)[0].split('"')[1];  // __VIEWSTATEGENERATOR
+
+      // also need in getTimetable
+      headers = {
+        "Accept": "﻿application/x-ms-application, image/jpeg, application/xaml+xml,image/gif, image/pjpeg, application/x-ms-xbap, */*",
+        "Referer": "http://202.202.1.176:8080/_data/index_login.aspx",
+        "Accept-Language": "zh-CN",
+        "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)",
+        //"Connection": "Keep-Alive",
+        "Content-Type": "application/x-www-form-urlencoded",
+        //"Content-Type": "text/html; charset=gb2312",
+        "Accept-Encoding": "gzip, deflate",
+        "Cookie": "ASP.NET_SessionId=" + sessionId
+      }
+      
+      // need a hash operation to ensure security
+      var hash_value = md5(sid + md5(password).substring(0, 30).toUpperCase() + '10611').substring(0, 30).toUpperCase();
+
+      var post_data = querystring.stringify({
+        "__VIEWSTATE": viewstate,
+        "__VIEWSTATEGENERATOR": viewstateg,
+        "Sel_Type": "STU",
+        "txt_dsdsdsdjkjkjc": sid,
+        "txt_dsdfdfgfouyy": password,
+        "txt_ysdsdsdskgf": "",
+        "pcInfo": "﻿Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E)x860 SN:NULL",
+        "typeName": "学生",
+        "aerererdsdxcxdfgfg": "",
+        "efdfdfuuyyuuckjg": hash_value
+      });
+      
       request({
         headers: headers,
         url: login_src, 
@@ -108,11 +94,12 @@ function getScheule(sid, password) {
           console.log('login success!');
         }
       });
+      
+      callback(null);
     },
     
-    function getTimetable(err) {
-      
-      // Get taimetable operation
+    // Get taimetable operation
+    function getTimetable(err, callback) {
       var post_data_st = querystring.stringify({
         "Sel_XNXQ": "20151",
         "rad": "on",
@@ -134,10 +121,12 @@ function getScheule(sid, password) {
         // start to parse
         parseTimetable(page);
       });
+      
+      callback(null);
     },
     
+    // Logout operation
     function logout(err) {
-      // Logout operation
       request.get("http://202.202.1.176:8080/sys/Logout.aspx", function (err, res, body) {
         if (res.statusCode == 200) console.log('Log out success');
       });
@@ -199,9 +188,7 @@ function parseTimetable(timetable) {
       subject.session.push(k);
     }
     var days = col[11].split('[')[0];
-    console.log(days);
     subject.days = toDays(days);
-    console.log(subject.days);
     // address
     subject.address = col[12];
     
@@ -250,7 +237,7 @@ function exportics(allSub) {
     fs.write(fd, cal.toString(), 0, 'utf8', function (e) {
       if (e) throw e;
       fs.closeSync(fd);
-      console.log('Success!');
+      console.log('Success, all done!');
     })
   });
 }
